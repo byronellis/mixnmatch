@@ -1,0 +1,45 @@
+<html>
+<head>
+	<title>R Device</title>
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+	<script type="text/javascript" src="raphael-min.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+	var id = window.location.search.substring(1);
+	console.log(id);
+	$.ajax({url:"/dev.js/"+id,success:function(data) {
+		var r = Raphael("device",data.width,data.height);
+		var height = data.height;
+		for(var i in data.cmds) {
+			var cmd = data.cmds[i];
+			if(cmd.type == "text") {
+				var t = r.text(cmd.x,cmd.y,cmd.str).attr(cmd.attr).attr("font-size",10);
+				t.translate(0,-t.getBBox().height/2);				
+				if(cmd.rot != 0)
+					t.rotate(-cmd.rot);				
+				if(cmd.hadj == 0) 
+					t.attr("text-anchor","start");
+				else if(cmd.hadj == 1)
+					t.attr("text-anchor","end");
+			} else if(cmd.type == "polyline") {
+				var x = cmd.x;
+				var y = cmd.y;
+				var path = [];
+				for(var i=0;i<x.length;i++) {
+					path.push((i==0?"M":"L")+x[i]+","+(y[i]));
+				}
+				r.path(path.join("")).attr(cmd.attr);
+			} else if(cmd.type == "circle") {
+				r.circle(cmd.x,(cmd.y),cmd.r).attr(cmd.attr);
+			} else {
+				console.log(cmd);
+			}
+		}
+	}});
+});
+</script>
+</head>
+<body>
+	<div id="device"></div>
+</body>
+</html>
