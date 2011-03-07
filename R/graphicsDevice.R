@@ -1,12 +1,12 @@
 library(RGraphicsDevice)
 library(rjson)
-
+library(maps)
 
 mongoDevice = function(dim=c(800,800),host="localhost:3000") {
 	dev = new("RDevDescMethods")
 	dim = as.integer(dim)
 	source(sprintf("http://%s/dev.new?width=%d&height=%d",host,dim[1],dim[2]))
-	print(.Gfx.Id)
+	print(sprintf("http://localhost:3000/device.html?%s",.Gfx.Id))
 	postCmd = function(cmd) {
 		con = socketConnection(port=3000,host="localhost")
 		j = toJSON(cmd)
@@ -17,6 +17,7 @@ mongoDevice = function(dim=c(800,800),host="localhost:3000") {
 	}
 	
 	to.attr = function(from) {
+
 		ans = character()
 	  ans["stroke-width"] = from$lwd
 
@@ -62,18 +63,21 @@ mongoDevice = function(dim=c(800,800),host="localhost:3000") {
     dev$canClip = TRUE
     dev$canChangeGamma = TRUE
     dev$startgamma = 1 
-    dev$startcol = as("red", "RGBInt")		
+    dev$startcol = as("black", "RGBInt")		
 	}
-	dev = graphicsDevice(dev,dim,col="black",fill="transparent",ps=10)
+	dev = graphicsDevice(dev,dim)
 	dev
 }
-x = read.delim("http://localhost:3000/df/iris")
+#x = read.delim("http://localhost:3000/df/iris")
+#d = mongoDevice()
+#plot(x,col=c("red","green","blue")[x$Species],pch=19)
+#dev.off()
+#pdf()
+#plot(x,col=c("red","green","blue")[x$Species],pch=19)
+#dev.off()
 d = mongoDevice()
-plot(x,col=c("red","green","blue")[x$Species],pch=19)
+x = read.delim("california.txt")
+map("county","california",fill=TRUE,col=as.character(x$color))
 dev.off()
-pdf()
-plot(x,col=c("red","green","blue")[x$Species],pch=19)
-dev.off()
-
 
 

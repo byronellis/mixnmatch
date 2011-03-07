@@ -21,7 +21,7 @@ $(document).ready(function() {
 					t.attr("text-anchor","start");
 				else if(cmd.hadj == 1)
 					t.attr("text-anchor","end");
-			} else if(cmd.type == "polyline") {
+			} else if(cmd.type == "polyline" || cmd.type == "polygon") {
 				var x = cmd.x;
 				var y = cmd.y;
 				var path = [];
