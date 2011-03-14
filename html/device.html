@@ -1,19 +1,53 @@
 <html>
 <head>
 	<title>R Device</title>
+	<style type="text/css">
+	* { margin:0;padding: 0; }
+	</style>
 	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
 	<script type="text/javascript" src="raphael-min.js"></script>
 <script type="text/javascript">
+if(!window.console) {
+	window.console = {log:function() { }};
+}
 $(document).ready(function() {
-	var id = window.location.search.substring(1);
-	console.log(id);
+	var id = window.location.hash.split("/")[1];
+	var timeout = null;
+	function updateDevice() {
 	$.ajax({url:"/dev.js/"+id,success:function(data) {
+		$('#device').html("");
 		var r = Raphael("device",data.width,data.height);
 		var height = data.height;
-		for(var i in data.cmds) {
-			var cmd = data.cmds[i];
+		var attr   = {};
+		function mergeAttr(newAttr) {
+			if(!newAttr) return;
+			for(var i in newAttr) attr[i] = newAttr[i];
+			
+			//Fix up the stroke and fill attributes if they've changed and have an alpha channel
+			if(newAttr.fill) {
+				if(attr.fill[0] == '#' && attr.fill.length == 9) {
+					attr.opacity = parseInt(attr.fill.substring(7,10),16)/255;
+					attr.fill = attr.fill.substring(0,7);
+				} else attr.opacity=1;
+			}
+			if(newAttr.col) {
+				if(attr.col[0] == '#' && attr.col.length == 9) {
+					attr.col = attr.col.substring(0,7);
+				}
+			}
+			if(attr.fill == "transparent") attr.fill = "none";
+			if(attr.col  == "transparent") attr.col = "none";
+
+			attr["stroke"] = attr["col"];
+			attr["stroke-width"] = attr["lwd"];
+			
+		}
+		console.log(data.cmd.length);
+		for(var i in data.cmd) {
+			var cmd = data.cmd[i];
+			mergeAttr(cmd.attr);
 			if(cmd.type == "text") {
-				var t = r.text(cmd.x,cmd.y,cmd.str).attr(cmd.attr).attr("font-size",10);
+				var t = r.text(cmd.x,cmd.y,cmd.str).attr({fill:attr.col,"font-size":attr.ps*attr.cex});
 				t.translate(0,-t.getBBox().height/2);				
 				if(cmd.rot != 0)
 					t.rotate(-cmd.rot);				
@@ -28,14 +62,18 @@ $(document).ready(function() {
 				for(var i=0;i<x.length;i++) {
 					path.push((i==0?"M":"L")+x[i]+","+(y[i]));
 				}
-				r.path(path.join("")).attr(cmd.attr);
+				r.path(path.join("")).attr(attr);
 			} else if(cmd.type == "circle") {
-				r.circle(cmd.x,(cmd.y),cmd.r).attr(cmd.attr);
+				r.circle(cmd.x,(cmd.y),cmd.r).attr(attr);
 			} else {
 				console.log(cmd);
 			}
 		}
+		if(timeout != null) clearTimeout(timeout);
+		timeout = setTimeout(updateDevice,60*1000);
 	}});
+	}
+	updateDevice();
 });
 </script>
 </head>

@@ -2,63 +2,90 @@ library(RGraphicsDevice)
 library(rjson)
 library(maps)
 
-mongoDevice = function(dim=c(800,800),host="localhost:3000") {
+mongoDevice = function(dim=c(800,800),host="localhost:3000",id=NULL,record=FALSE) {
 	dev = new("RDevDescMethods")
 	dim = as.integer(dim)
-	source(sprintf("http://%s/dev.new?width=%d&height=%d",host,dim[1],dim[2]))
-	print(sprintf("http://localhost:3000/device.html?%s",.Gfx.Id))
-	postCmd = function(cmd) {
+	if(is.null(id))
+		source(sprintf("http://%s/dev.new?width=%d&height=%d",host,dim[1],dim[2]))
+	else
+		source(sprintf("http://%s/dev.new?width=%d&height=%d&id=%s",host,dim[1],dim[2],id))
+	print(sprintf("http://localhost:3000/#!/%s",.Gfx.Id))
+	
+	postCmd = function(cmd,from) {
+		new.attr = to.attr(from)
+		if(length(new.attr) > 0)
+			cmd$attr = new.attr
 		con = socketConnection(port=3000,host="localhost")
 		j = toJSON(cmd)
 		l = sprintf("POST /dev.cmd/%s HTTP/1.1\nContent-Type: application/json\nContent-Length:%d\n\n%s",.Gfx.Id,nchar(j),j)
-#		writeLines(l)
 		writeLines(l,con)
 		close(con)
 	}
 	
-	to.attr = function(from) {
-
-		ans = character()
-	  ans["stroke-width"] = from$lwd
-
-	  col = as(from$col, "RGB")
-	  ans["stroke"] = if(col == "transparent") "none" else col
-
-
-	  fill = as(from$fill, "RGB")
-	  ans["fill"] = if(fill == "transparent") "none" else fill          
-		ans		
+	last.attr = list()
+	
+	
+	to.attr = function(from,font=FALSE) {
+		new.attr = list()
+		update.val = function(key,val) {
+			if(length(last.attr[[key]]) == 0 || val != last.attr[[key]]) {
+				last.attr[[key]] <<- val
+				new.attr[[key]] <<- val
+			}
+		}
+		update.val("col",as.character(as(from$col,'RGB')))
+		update.val("fill",as.character(as(from$fill,'RGB')))
+		update.val("gamma",from$gamma)
+		update.val("lwd",from$lwd)
+		update.val("lty",from$lty)
+		update.val("lend",from$lend)
+		update.val("ljoin",from$ljoin)
+		update.val("lmitre",from$lmitre)
+		update.val("cex",from$cex)
+		update.val("ps",from$ps)
+		update.val("lineheight",from$lineheight)
+		update.val("fontface",from$fontface)
+		update.val("fontfamily",from$fontfamily)
+		new.attr
 	}
 	
-	
-	
+	dev@newPage = function(gcontext,dev) {
+		last.attr <<- list()
+		if(record)
+			postCmd(list(type="page"),gcontext)
+		else
+			source(sprintf("http://%s/dev.page/%s",host,.Gfx.Id))
+	}
 	dev@line = function(x1,y1,x2,y2,gcontext,dev) {
-		postCmd(list(type="polyline",x=c(x1,x2),y=c(y1,y2),attr=to.attr(gcontext)))
+		postCmd(list(type="polyline",x=round(c(x1,x2),2),y=round(c(y1,y2),2)),gcontext)
 	}
 	dev@circle = function(x,y,r,gcontext,dev) {
-		postCmd(list(type="circle",x=x,y=y,r=r,attr=to.attr(gcontext)))
+		postCmd(list(type="circle",x=round(x,2),y=round(y,2),r=round(r,2)),gcontext)
 	}
 	dev@rect = function(x,y,w,h,gcontext,dev) {
-		postCmd(list(type="rect",x=x,y=y,w=w,h=h,attr=to.attr(gcontext)))
+		postCmd(list(type="rect",x=round(x,2),y=round(y,2),w=round(w,2),h=round(h,2)),gcontext)
 	}
 	dev@polygon = function(n,x,y,gcontext,dev) {
-		postCmd(list(type="polygon",x=x[1:n],y=y[1:n],attr=to.attr(gcontext)))
+		postCmd(list(type="polygon",x=round(x[1:n],2),y=round(y[1:n],2)),gcontext)
 	}
 	dev@polyline = function(n,x,y,gcontext,dev) {
-		postCmd(list(type="polyline",x=x[1:n],y=y[1:n],attr=to.attr(gcontext)))
+		postCmd(list(type="polyline",x=round(x[1:n],2),y=round(y[1:n],2)),gcontext)
 	}
 	dev@text = function(x,y,str,rot,hadj,gcontext,dev) {
-		postCmd(list(type="text",x=x,y=y,str=str,rot=rot,hadj=hadj,attr=to.attr(gcontext)))
+		postCmd(list(type="text",x=round(x,2),y=round(y,2),str=str,rot=rot,hadj=hadj),gcontext)
 	}
 	dev@strWidth = function(str, gcontext, dev) {
-		nchar(str) *  min(10, gcontext $ ps) * gcontext$cex
+		nchar(str) *  max(10, gcontext $ ps) * gcontext$cex
 	}
 	dev@close = function(dev) {
 		
 	}
 	dev@initDevice = function(dev) {
-    dev$ipr = rep(1/72.27, 2)
-    dev$cra = rep(c(6, 13)/12) * 10
+		dev$xCharOffset = 0.4900
+		dev$yCharOffset = 0.3333
+		dev$yLineBias   = 0.20
+    dev$ipr = rep(1/72, 2)
+    dev$cra = 10*c(6,13)/12
     dev$startps = 10
     dev$canClip = TRUE
     dev$canChangeGamma = TRUE
@@ -69,15 +96,18 @@ mongoDevice = function(dim=c(800,800),host="localhost:3000") {
 	dev
 }
 #x = read.delim("http://localhost:3000/df/iris")
-#d = mongoDevice()
+#data(iris)
+#x = iris
+#d = mongoDevice(id="elections")
 #plot(x,col=c("red","green","blue")[x$Species],pch=19)
 #dev.off()
+#warnings()
 #pdf()
 #plot(x,col=c("red","green","blue")[x$Species],pch=19)
 #dev.off()
-d = mongoDevice()
-x = read.delim("california.txt")
-map("county","california",fill=TRUE,col=as.character(x$color))
-dev.off()
+#d = mongoDevice(id="elections")
+#x = read.delim("california.txt")
+#map("county","california",fill=TRUE,col=as.character(x$color))
+#dev.off()
 
 
