@@ -1,0 +1,15 @@
+This contains code from my Stanford Stats290 and BARUG presentations.
+
+1. Start up mongod
+
+2.
+cd node
+node ./collabotron-server.js
+
+3.
+cd R
+R --no-save < electionLoad.R
+
+4.
+http://localhost:3000/#!/elections
+
